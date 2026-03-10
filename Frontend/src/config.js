@@ -1,6 +1,6 @@
-// Replace the hardcoded localhost string with this:
-export const API_BASE = import.meta.env.VITE_REACT_APP_BACKEND_BASEURL 
-    ? `${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/bot/v1` 
-    : "http://localhost:4002/bot/v1"; 
+// config.js
+const BASE_URL =import.meta.env.VITE_REACT_APP_BACKEND_BASEURL || "http://localhost:4002";
 
-console.log("Current API Base:", API_BASE); // This helps you debug in the F12 console
+export const API_BASE = `${BASE_URL}/bot/v1`;
+
+console.log("Connecting to API at:", API_BASE);
