@@ -45,47 +45,30 @@ import userRouter from './routes/userRoutes.js';
 
 dotenv.config()
 const app = express();
+// Railway provides the PORT automatically, so process.env.PORT is crucial
 const port = process.env.PORT || 3000;
 
 // 1. Middleware
 app.use(express.json())
-// IMPORTANT: Update this to your Vercel Frontend URL later for security
 app.use(cors()) 
 
+// Health Check Route
 app.get("/", (req, res) => {
-    res.json({ status: "Backend is running!", message: "BotSpoof API is live." });
+    res.json({ status: "Backend is running!", message: "BotSpoof API is live on Railway." });
 });
-
 
 // 2. Routes
 app.use('/bot/v1/api/auth', userRouter);
 app.use("/bot/v1", chatBotRoutes)
 app.use("/bot/v1/api/auth/chat", chatRoutes)
 
-// 3. Optimized Database Connection for Serverless
-const connectDB = async () => {
-    if (mongoose.connections[0].readyState) return; // Use existing connection
-    try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log("Connected to MongoDB");
-    } catch (error) {
-        console.log("Error connecting to MongoDB", error);
-    }
-};
+// 3. Database Connection (Standard)
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log("Connected to MongoDB"))
+    .catch((error) => console.log("Error connecting to MongoDB", error));
 
-// 4. Wrap the listener for Local Development only
-if (process.env.NODE_ENV !== 'production') {
-    connectDB(); // Connect immediately in dev mode
-    app.listen(port, () => {
-        console.log(`Server is listening on port http://localhost:${port}`);
-    });
-}
-
-// 5. Middleware to ensure DB is connected for every request on Vercel
-app.use(async (req, res, next) => {
-    await connectDB();
-    next();
+// 4. Standard Listener (Crucial for Railway)
+// Using '0.0.0.0' allows Railway to detect the server
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server is listening on port ${port}`);
 });
-
-// 6. CRITICAL: Export for Vercel
-export default app;
