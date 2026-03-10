@@ -52,6 +52,11 @@ app.use(express.json())
 // IMPORTANT: Update this to your Vercel Frontend URL later for security
 app.use(cors()) 
 
+app.get("/", (req, res) => {
+    res.json({ status: "Backend is running!", message: "BotSpoof API is live." });
+});
+
+
 // 2. Routes
 app.use('/bot/v1/api/auth', userRouter);
 app.use("/bot/v1", chatBotRoutes)
