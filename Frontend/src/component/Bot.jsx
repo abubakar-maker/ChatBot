@@ -77,7 +77,7 @@ function Bot() {
     abortControllerRef.current = new AbortController();
 
     try {
-      const res = await axios.post("http://localhost:4002/bot/v1/message", { 
+      const res = await axios.post(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/bot/v1/message`, { 
         text: userMessage.text,
         userId: currentUser?.id 
       }, {
@@ -90,9 +90,9 @@ function Bot() {
       if (currentUser) {
         const botMsg = { text: res.data.botMessage, sender: "bot" };
         if (activeChatId) {
-          await axios.post(`http://localhost:4002/bot/v1/api/auth/chat/save/${activeChatId}`, { messages: [userMessage, botMsg] });
+          await axios.post(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/bot/v1/api/auth/chat/save/${activeChatId}`, { messages: [userMessage, botMsg] });
         } else {
-          const newChatRes = await axios.post("http://localhost:4002/bot/v1/api/auth/chat/save", {
+          const newChatRes = await axios.post(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/bot/v1/api/auth/chat/save`, {
             userId: currentUser.id,
             message: [userMessage, botMsg],
           });
@@ -166,7 +166,7 @@ function Bot() {
     try {
       const currentUser = JSON.parse(localStorage.getItem("currentUser"));
       if (!currentUser) return;
-      const res = await axios.get(`http://localhost:4002/bot/v1/api/auth/chat/user/${currentUser.id}`);
+      const res = await axios.get(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/bot/v1/api/auth/chat/user/${currentUser.id}`);
       setChats(res.data);
     } catch (error) { console.log(error); }
   };
@@ -195,7 +195,7 @@ function Bot() {
 
   const handleDeleteChat = async (chatId) => {
     try {
-      await axios.delete(`http://localhost:4002/bot/v1/api/auth/chat/${chatId}`);
+      await axios.delete(`${import.meta.env.VITE_REACT_APP_BACKEND_BASEURL}/bot/v1/api/auth/chat/${chatId}`);
       setChats((prev) => prev.filter((chat) => chat._id !== chatId));
       if (activeChatId === chatId) { setMessages([]); setActiveChatId(null); }
       setOpenMenuId(null);
