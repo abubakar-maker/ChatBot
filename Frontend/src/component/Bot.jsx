@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { FaUserCircle, FaBars, FaTimes, FaPlus, FaCopy, FaEdit, FaCheckCircle } from "react-icons/fa";
+import { FaUserCircle, FaBars, FaTimes, FaPlus, FaCopy, FaEdit, FaCheckCircle, FaStop } from "react-icons/fa";
 import { FiMoreVertical } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import "../index.css";
@@ -23,6 +23,10 @@ function Bot() {
   const inputRef = useRef(null);
   const navigate = useNavigate();
 
+  // Refs for stopping functionality
+  const abortControllerRef = useRef(null);
+  const streamingIntervalRef = useRef(null);
+
   /* ---------------- Helpers ---------------- */
   
   const showToast = (msg) => {
@@ -31,7 +35,7 @@ function Bot() {
   };
 
   const copyToClipboard = (e, text) => {
-    e.stopPropagation(); // Prevents triggering the bubble's edit click
+    e.stopPropagation();
     navigator.clipboard.writeText(text);
     showToast("Copied to clipboard!");
   };
@@ -42,11 +46,26 @@ function Bot() {
     showToast("Message moved to input for editing");
   };
 
+  const handleStopGenerating = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    if (streamingIntervalRef.current) {
+      clearInterval(streamingIntervalRef.current);
+    }
+    setLoading(false);
+  };
+
   /* ---------------- Messaging ---------------- */
 
   const handleSendMessage = async (customText) => {
     const textToSend = customText || input;
-    if (!textToSend.trim() || loading) return;
+    if (!textToSend.trim()) return;
+
+    // Restart logic: if already loading, kill the old one
+    if (loading) {
+      handleStopGenerating();
+    }
 
     const currentUser = JSON.parse(localStorage.getItem("currentUser"));
     const userMessage = { text: textToSend, sender: "user" };
@@ -55,13 +74,17 @@ function Bot() {
     setInput("");
     setLoading(true);
 
+    abortControllerRef.current = new AbortController();
+
     try {
       const res = await axios.post("http://localhost:4002/bot/v1/message", { 
         text: userMessage.text,
         userId: currentUser?.id 
+      }, {
+        signal: abortControllerRef.current.signal
       });
       
-      setLoading(false);
+      // We do NOT set loading false here; showBotMessageStreaming will handle it.
       showBotMessageStreaming(res.data.botMessage);
 
       if (currentUser) {
@@ -78,26 +101,39 @@ function Bot() {
         loadChats();
       }
     } catch (error) {
-      setLoading(false);
-      console.log("Error:", error);
+      if (axios.isCancel(error)) {
+        console.log("Request canceled");
+      } else {
+        setLoading(false);
+        console.log("Error:", error);
+      }
     }
   };
 
   const showBotMessageStreaming = (fullText) => {
     let index = 0;
     setMessages((prev) => [...prev, { text: "", sender: "bot" }]);
-    const interval = setInterval(() => {
+    
+    if (streamingIntervalRef.current) clearInterval(streamingIntervalRef.current);
+
+    streamingIntervalRef.current = setInterval(() => {
       index++;
       setMessages((prev) => {
         const updated = [...prev];
-        updated[updated.length - 1].text = fullText.slice(0, index);
+        if (updated.length > 0) {
+          updated[updated.length - 1].text = fullText.slice(0, index);
+        }
         return updated;
       });
-      if (index === fullText.length) clearInterval(interval);
+
+      if (index === fullText.length) {
+        clearInterval(streamingIntervalRef.current);
+        setLoading(false); // Button disappears ONLY when typing is done
+      }
     }, 22);
   };
 
-  /* ---------------- Shortcuts & Loaders (Unchanged) ---------------- */
+  /* ---------------- Shortcuts & Loaders ---------------- */
   useEffect(() => {
     const handleShortcuts = (e) => {
       if (e.key === "/" && document.activeElement !== inputRef.current) {
@@ -135,9 +171,27 @@ function Bot() {
     } catch (error) { console.log(error); }
   };
 
-  const handleNewChat = () => { setMessages([]); setActiveChatId(null); setInput(""); setIsSidebarOpen(false); };
-  const handleLogout = () => { localStorage.clear(); setLoggedIn(false); navigate("/login"); };
-  const handleSelectChat = (chat) => { setActiveChatId(chat._id); setMessages(chat.message || []); setIsSidebarOpen(false); };
+  const handleNewChat = () => { 
+    handleStopGenerating();
+    setMessages([]); 
+    setActiveChatId(null); 
+    setInput(""); 
+    setIsSidebarOpen(false); 
+  };
+
+  const handleLogout = () => { 
+    handleStopGenerating();
+    localStorage.clear(); 
+    setLoggedIn(false); 
+    navigate("/login"); 
+  };
+
+  const handleSelectChat = (chat) => { 
+    handleStopGenerating();
+    setActiveChatId(chat._id); 
+    setMessages(chat.message || []); 
+    setIsSidebarOpen(false); 
+  };
 
   const handleDeleteChat = async (chatId) => {
     try {
@@ -158,7 +212,6 @@ function Bot() {
           <button onClick={() => setIsSidebarOpen(false)}><FaTimes size={20} /></button>
         </div>
 
-        {/* NEW CHAT BUTTON WITH TOOLTIP */}
         <div className="relative group mt-14 md:mt-20">
           <button
             onClick={handleNewChat}
@@ -166,7 +219,6 @@ function Bot() {
           >
             <FaPlus size={14} /> New Chat
           </button>
-          {/* Tooltip */}
           <span className="absolute -top-10 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border border-gray-700 z-50">
             Shortcut: Ctrl + Shift + P
           </span>
@@ -192,7 +244,6 @@ function Bot() {
                 </button>
               </div>
 
-              {/* DELETE MENU */}
               {openMenuId === chat._id && (
                 <div className="absolute right-0 mt-1 w-32 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-2xl z-50">
                   <button 
@@ -226,8 +277,8 @@ function Bot() {
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center mt-32 text-gray-500">
                 <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mb-4 border border-green-500/20"><span className="text-2xl">🤖</span></div>
-              <h2 className="text-2xl font-bold">How can I help you?</h2>
-   <p className="text-gray-500 text-sm mt-2">Type "/" to focus the input field.</p>
+                <h2 className="text-2xl font-bold text-white">How can I help you?</h2>
+                <p className="text-gray-500 text-sm mt-2">Type "/" to focus the input field.</p>
               </div>
             ) : (
               messages.map((msg, idx) => (
@@ -239,7 +290,6 @@ function Bot() {
                   }`}>
                     {msg.text}
                     
-                    {/* Tool Buttons */}
                     <div className={`absolute -top-8 ${msg.sender === "user" ? "right-0" : "left-0"} hidden group-hover:flex gap-2 bg-[#1a1a1a] border border-gray-800 p-1 rounded-lg shadow-2xl`}>
                       <button onClick={(e) => copyToClipboard(e, msg.text)} className="p-1.5 hover:text-green-500 transition-colors" title="Copy"><FaCopy size={12}/></button>
                       {msg.sender === "user" && <button className="p-1.5 hover:text-blue-400 transition-colors" title="Edit"><FaEdit size={12}/></button>}
@@ -253,7 +303,6 @@ function Bot() {
           </div>
         </main>
 
-        {/* TOAST NOTIFICATION */}
         {toast.show && (
           <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-2xl animate-bounce z-50">
             <FaCheckCircle /> {toast.message}
@@ -261,10 +310,34 @@ function Bot() {
         )}
 
         <footer className="p-4 bg-[#0b0b0b]">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto relative">
+            
+            {/* STOP BUTTON */}
+            {loading && (
+              <button 
+                onClick={handleStopGenerating}
+                className="absolute -top-14 left-1/2 -translate-x-1/2 bg-[#151515] border border-gray-800 text-gray-300 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-red-500/10 hover:text-red-500 transition-all shadow-2xl z-40"
+              >
+                <FaStop size={10} className="text-red-500" /> Stop Generating
+              </button>
+            )}
+
             <div className="relative flex items-center bg-[#181818] border border-gray-800 rounded-2xl p-1.5 focus-within:border-green-500/40 transition-all shadow-xl">
-              <input ref={inputRef} type="text" className="flex-1 bg-transparent outline-none text-white px-4 py-2 text-sm" placeholder="Ask ChatBot... ( / )" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSendMessage()} />
-              <button onClick={() => handleSendMessage()} className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all active:scale-95">Send</button>
+              <input 
+                ref={inputRef} 
+                type="text" 
+                className="flex-1 bg-transparent outline-none text-white px-4 py-2 text-sm" 
+                placeholder="Ask ChatBot... ( / )" 
+                value={input} 
+                onChange={(e) => setInput(e.target.value)} 
+                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()} 
+              />
+              <button 
+                onClick={() => handleSendMessage()} 
+                className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all active:scale-95"
+              >
+                {loading ?"Ø" : "Send"}
+              </button>
             </div>
           </div>
         </footer>
