@@ -52,7 +52,7 @@ app.use(express.json())
 
 // Updated CORS: Allows both local testing and your live Vercel site
 app.use(cors({
-    origin: ["http://localhost:5173", "https://your-frontend-name.vercel.app"], 
+    origin: ["https://chatbote.up.railway.app", "http://localhost:5173"], 
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
