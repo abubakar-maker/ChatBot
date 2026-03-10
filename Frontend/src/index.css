@@ -1,0 +1,4 @@
+@import "tailwindcss";
+.bot-message{
+    font-family: "Roboto", sans-serif;
+}
