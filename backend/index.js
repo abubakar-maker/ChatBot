@@ -1,79 +1,56 @@
-// import express from 'express'
-// import dotenv from 'dotenv'
-// import mongoose from 'mongoose';
-// import chatBotRoutes from './routes/chatBot.route.js'
-// import chatRoutes from './routes/chatRoute.js'
-// import cors from 'cors'
-// import userRouter from './routes/userRoutes.js';
-
-// const app = express();
-// dotenv.config()
-// const port = process.env.PORT || 3000;
-
-// //Middleware....
-
-// app.use(express.json())
-// app.use(cors())
-
-// app.use('/bot/v1/api/auth', userRouter);
-// app.use("/bot/v1", chatBotRoutes)
-// app.use("/bot/v1/api/auth/chat",chatRoutes)
-// // DATABASE CONNECTION 
-// mongoose.connect(process.env.MONGO_URI)
-// .then(()=> {
-//     console.log("Coonected to  mongoDb");
-    
-// }).catch((error)=> {
-//     console.log("error connecting to MONGODB",error);
-    
-// })
-
-
-// app.listen(port,()=> {
-//     console.log(`Server is listning on port http://localhost:${port}`);
-    
-// })
-import express from 'express'
-import dotenv from 'dotenv'
+import express from 'express';
+import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import chatBotRoutes from './routes/chatBot.route.js'
-import chatRoutes from './routes/chatRoute.js'
-import cors from 'cors'
+import cors from 'cors';
+
+// Route Imports
+import chatBotRoutes from './routes/chatBot.route.js';
+import chatRoutes from './routes/chatRoute.js';
 import userRouter from './routes/userRoutes.js';
 
-dotenv.config()
+// Initialization
+dotenv.config();
 const app = express();
 
-// Railway automatically assigns a PORT; process.env.PORT is mandatory
-const port = process.env.PORT || 3000;
+// Use the port from .env (4002) or default to 3000
+const port = process.env.PORT || 4000;
 
 // 1. Middleware
-app.use(express.json())
+app.use(express.json());
 
-// Updated CORS: Allows both local testing and your live Vercel site
+// Updated CORS to handle your local React dev server and old production links
 app.use(cors({
-    origin: ["https://chatbote.up.railway.app", "http://localhost:5173"], 
+    origin: ["http://localhost:5173","http://192.168.0.113:5173", "https://chatbote.up.railway.app"], 
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
 
-// Health Check Route (Helps Railway see the app is 'Active')
+// 2. Health Check Route
 app.get("/", (req, res) => {
-    res.json({ status: "Backend is running!", message: "BotSpoof API is live on Railway." });
+    res.json({ 
+        status: "Backend is running!", 
+        message: "BotSpoof API is live locally on port " + port 
+    });
 });
 
-// 2. Routes
+// 3. API Routes
+// Auth & User Management
 app.use('/bot/v1/api/auth', userRouter);
-app.use("/bot/v1", chatBotRoutes)
-app.use("/bot/v1/api/auth/chat", chatRoutes)
 
-// 3. Database Connection
+// Chatbot Logic (The one you are currently debugging)
+app.use("/bot/v1", chatBotRoutes);
+
+// Saved Chats / History
+app.use("/bot/v1/api/auth/chat", chatRoutes);
+
+// 4. Database Connection
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("Connected to MongoDB"))
-    .catch((error) => console.log("Error connecting to MongoDB", error));
+    .then(() => console.log("✅ Connected to MongoDB"))
+    .catch((error) => console.log("❌ Error connecting to MongoDB:", error));
 
-// 4. Standard Listener
-// '0.0.0.0' is essential for Railway to route external traffic to your app
+// 5. Server Listener
+// Using '0.0.0.0' allows connectivity across your local network and hosting services
 app.listen(port, '0.0.0.0', () => {
-    console.log(`Server is listening on port ${port}`);
+    console.log(`🚀 Server is running on: http://localhost:${port}`);
+    console.log(`📡 Local API Endpoint: http://localhost:${port}/bot/v1`);
 });

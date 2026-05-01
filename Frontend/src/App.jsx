@@ -3,6 +3,8 @@ import Bot from "./component/Bot";
 import Signup from "./component/Signup";
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import Login from "./component/Login";
+import { Skeleton } from "boneyard-js/react";
+
 
 const App = () => {
   return (

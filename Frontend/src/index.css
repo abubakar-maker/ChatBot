@@ -1,4 +1,53 @@
+/* ═══════════════════════════════════════════════════════════
+   index.css — Tailwind v4 (@tailwindcss/vite plugin)
+   
+   Tailwind v4 uses @import "tailwindcss" instead of @tailwind directives.
+   The FOUC (black/white flash on first load) happens because:
+   1. JS-injected styles arrive AFTER first paint
+   2. background-color is not set until React mounts
+   
+   FIX: We set background + color directly on html/body HERE,
+   so the browser paints it immediately before any JS runs.
+═══════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
-.bot-message{
-    font-family: "Roboto", sans-serif;
+
+/* ── FOUC FIX: Paint background immediately ─────────────────
+   This runs at CSS parse time, before JavaScript,
+   before React, before anything. The user never sees white.
+─────────────────────────────────────────────────────────── */
+html {
+  background-color: #080b12;
+  color: #e2e8f0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
+
+body {
+  background-color: #080b12;
+  color: #e2e8f0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  /* Prevents FOUC flash even if font hasn't loaded */
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+  background-color: #080b12;
+}
+
+/* ── Prevent iOS zoom on input focus ── */
+input, textarea, select {
+  font-size: max(16px, 1em) !important;
+  touch-action: manipulation;
+}
+
+/* ── Thin scrollbars ── */
+::-webkit-scrollbar       { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
